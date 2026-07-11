@@ -27,21 +27,23 @@ async fn unix_socket() {
     smoke_test("postgres://postgres@%2Frun%2Fpostgresql:5433/").await;
     smoke_test("postgres://postgres@/?host=/run/postgresql&port=5433").await;
 
-    // `host` is `None` -> error cause: "both host and hostaddr are missing"
-    // smoke_test("port=5433 user=postgres").await;
-    // smoke_test("postgres://postgres@/?port=5433").await;
+    // Fallback to default socket path when `host` is `None`
+    // (on non-unix, error cause: "both host and hostaddr are missing")
+    smoke_test("port=5433 user=postgres").await;
+    smoke_test("postgres://postgres@/?port=5433").await;
 
-    // `host` is "" -> error cause: "failed to lookup address information: No address associated with hostname"
-    // smoke_test("host='' port=5433 user=postgres").await;
-    // smoke_test("postgres://postgres@/?host=&port=5433").await;
-    // smoke_test("postgres://postgres@:5433").await;
-    // smoke_test("postgres://postgres@:5433,:5433").await;
+    // Fallback to default socket path when `host` is ""
+    // (on non-unix, error cause: "failed to lookup address information: No address associated with hostname")
+    smoke_test("host='' port=5433 user=postgres").await;
+    smoke_test("postgres://postgres@/?host=&port=5433").await;
+    smoke_test("postgres://postgres@:5433").await;
+    smoke_test("postgres://postgres@:5433,:5433").await;
 
-    // Currently these will always fail when looking up the empty hostname, and then attempt the
-    // intended host. If a fallback domain socket is added, then the empty host could turn from a
-    // silent failure into a successful domain socket connection.
-    smoke_test("host=,/run/postgresql port=5433 user=postgres").await;
-    smoke_test("postgres://postgres@:5433/?host=/run/postgresql").await;
+    // Previously these would always fail when looking up the empty hostname, and then attempt the
+    // intended host. With a fallback path now in place, the empty host is no longer a silent
+    // failure and may result in a successful connection to the fallback host path.
+    smoke_test("host=,/does/not/exist port=5433 user=postgres").await;
+    smoke_test("postgres://postgres@:5433/?host=/does/not/exist").await;
 }
 
 #[tokio::test]
